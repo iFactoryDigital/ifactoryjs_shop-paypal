@@ -1,0 +1,19 @@
+{
+  "name": "@edenjs/shop-paypal",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eden-js/shop-paypal.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eden-js/shop-paypal/issues"
+  },
+  "homepage": "https://github.com/eden-js/shop-paypal#readme"
+}

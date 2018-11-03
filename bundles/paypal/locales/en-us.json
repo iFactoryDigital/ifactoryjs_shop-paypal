@@ -1,0 +1,11 @@
+{
+  "paypal" : {
+    "method" : "Checkout with PayPal",
+
+    "order" : {
+      "paid"     : "Paid with PayPal",
+      "pending"  : "PayPal payment pending",
+      "redirect" : "Redirect to PayPal checkout"
+    }
+  }
+}
