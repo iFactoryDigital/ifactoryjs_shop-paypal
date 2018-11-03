@@ -15,5 +15,10 @@
   "bugs": {
     "url": "https://github.com/eden-js/shop-paypal/issues"
   },
-  "homepage": "https://github.com/eden-js/shop-paypal#readme"
+  "homepage": "https://github.com/eden-js/shop-paypal#readme",
+  "dependencies": {
+    "money-math": "^2.5.1",
+    "paypal-rest-sdk": "^1.8.1",
+    "uuid": "^3.3.2"
+  }
 }
