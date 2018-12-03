@@ -137,13 +137,17 @@ class PaypalController extends Controller {
     // check method
     if (payment.get('error') || payment.get('method.type') !== 'paypal') return;
 
+    // load user
+    let invoice = await payment.get('invoice');
+    let order   = await invoice.get('order');
+
     // check type
-    let subscription = await payment.get('subscription');
+    let subscriptions = await order.get('subscriptions');
 
     // check if subscription
-    if (subscription) {
+    if (subscriptions && subscriptions.length) {
       // return normal subscription
-      return await this._subscription(payment, subscription);
+      return await this._subscription(payment, subscriptions);
     } else {
       // return normal payment
       return await this._normal(payment);
@@ -159,8 +163,8 @@ class PaypalController extends Controller {
    */
   async _normal (payment) {
     // load user
-    let order   = await payment.get('order');
     let invoice = await payment.get('invoice');
+    let order   = await invoice.get('order');
 
     // let items
     let items = await Promise.all(invoice.get('lines').map(async (line) => {
@@ -169,7 +173,7 @@ class PaypalController extends Controller {
         'qty'     : line.qty,
         'opts'    : line.opts || {},
         'user'    : await order.get('user'),
-        'product' : await product.findById(line.product)
+        'product' : await Product.findById(line.product)
       };
 
       // return price
@@ -189,7 +193,7 @@ class PaypalController extends Controller {
 
       // return object
       return {
-        'sku'      : item.product.get('sku').replace('ALI-', '') + (Object.values(line.opts || [])).join('_'),
+        'sku'      : item.product.get('sku') + (Object.values(line.opts || [])).join('_'),
         'name'     : item.product.get('title.en-us'),
         'price'    : money.floatToAmount(opts.base),
         'currency' : payment.get('currency') || 'USD',
@@ -296,10 +300,10 @@ class PaypalController extends Controller {
    *
    * @return {Promise}
    */
-  async _subscription (payment, subscription) {
+  async _subscription (payment, subscriptions) {
     // load user
-    let order   = await payment.get('order');
     let invoice = await payment.get('invoice');
+    let order   = await invoice.get('order');
 
     // let items
     let items = await Promise.all(invoice.get('lines').map(async (line) => {
@@ -308,7 +312,7 @@ class PaypalController extends Controller {
         'qty'     : line.qty,
         'opts'    : line.opts || {},
         'user'    : await order.get('user'),
-        'product' : await product.findById(line.product)
+        'product' : await Product.findById(line.product)
       };
 
       // return price
@@ -328,10 +332,11 @@ class PaypalController extends Controller {
 
       // return object
       return {
-        'sku'      : item.product.get('sku').replace('ALI-', '') + (Object.values(line.opts || [])).join('_'),
+        'sku'      : item.product.get('sku') + (Object.values(line.opts || [])).join('_'),
         'name'     : item.product.get('title.en-us'),
         'type'     : item.product.get('type'),
         'price'    : money.floatToAmount(opts.base),
+        'period'   : opts.period,
         'currency' : payment.get('currency') || 'USD',
         'quantity' : opts.qty,
       };
@@ -385,19 +390,25 @@ class PaypalController extends Controller {
       'name'        : 'Subscription plan for #' + payment.get('_id').toString(),
       'type'        : 'INFINITE',
       'description' : 'Subscription plan for #' + payment.get('_id').toString(),
-      'payment_definitions' : [
-        {
-          'name'               : 'Subscription #' + subscription.get('_id').toString(),
-          'type'               : 'REGULAR',
-          'frequency'          : periods[subscription.get('period')].frequency,
-          'frequency_interval' : periods[subscription.get('period')].frequency_interval,
-          'amount' : {
-            'value'    : subscription.get('price').toFixed(2),
-            'currency' : 'USD'
-          },
-          'cycles' : '0'
-        }
-      ],
+      'payment_definitions' : subscriptions.map((subscription) => {
+        // get item
+        let item = subscriptionItems.find((i) => i.period === subscription.get('period') && i.product === subscription.get('product.id'));
+
+        // return array
+        return [
+          {
+            'name'               : 'Subscription #' + subscription.get('_id').toString(),
+            'type'               : 'REGULAR',
+            'frequency'          : periods[subscription.get('period')].frequency,
+            'frequency_interval' : periods[subscription.get('period')].frequency_interval,
+            'amount' : {
+              'value'    : money.floatToAmount(parseFloat(item.price) / item.qty),
+              'currency' : 'USD'
+            },
+            'cycles' : '0'
+          }
+        ];
+      }),
       'merchant_preferences' : {
         'setup_fee' : {
           'value'    : normalTotal,
@@ -410,6 +421,8 @@ class PaypalController extends Controller {
         'initial_fail_amount_action' : 'CONTINUE'
       }
     };
+
+    console.log(billingPlan); return;
 
     // create billing plan
     let createdPlan = await new Promise((resolve, reject) => {
