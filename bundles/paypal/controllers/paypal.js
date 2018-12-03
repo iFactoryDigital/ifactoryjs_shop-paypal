@@ -44,7 +44,7 @@ class PaypalController extends Controller {
     this.eden.pre('payment.init', this._method);
 
     // hook payment pay
-    this.eden.pre('payment.pay', this._pay);
+    this.eden.post('payment.pay', this._pay);
   }
 
   /**
@@ -168,36 +168,34 @@ class PaypalController extends Controller {
 
     // let items
     let items = await Promise.all(invoice.get('lines').map(async (line) => {
-      // priced
-      let item = {
-        'qty'     : line.qty,
-        'opts'    : line.opts || {},
-        'user'    : await order.get('user'),
-        'product' : await Product.findById(line.product)
-      };
+      // get product
+      let product = await Product.findById(line.product);
 
-      // return price
-      await this.eden.hook('product.order', item);
+      // get price
+      let price = await ProductHelper.price(product, line.opts || {});
 
-      // let opts
-      let opts = {
-        'qty'   : parseInt(line.qty),
-        'item'  : item,
-        'base'  : (parseFloat(item.price) || 0),
-        'price' : (parseFloat(item.price) || 0) * parseInt(line.qty),
-        'order' : order
-      };
+      // return value
+      let amount = parseFloat(price.amount) * parseInt(line.qty || 1);
 
-      // price item
-      await this.eden.hook('line.price', opts);
+      // hook
+      await this.eden.hook('line.price', {
+        'qty'  : line.qty,
+        'user' : await order.get('user'),
+        'opts' : line.opts,
+
+        order,
+        price,
+        amount,
+        product
+      });
 
       // return object
       return {
-        'sku'      : item.product.get('sku') + (Object.values(line.opts || [])).join('_'),
-        'name'     : item.product.get('title.en-us'),
-        'price'    : money.floatToAmount(opts.base),
+        'sku'      : product.get('sku') + (Object.values(line.opts || {})).join('_'),
+        'name'     : product.get('title.en-us'),
+        'price'    : money.floatToAmount(parseFloat(price.amount)),
         'currency' : payment.get('currency') || 'USD',
-        'quantity' : opts.qty,
+        'quantity' : line.qty
       };
     }));
 
@@ -307,40 +305,40 @@ class PaypalController extends Controller {
 
     // let items
     let items = await Promise.all(invoice.get('lines').map(async (line) => {
-      // priced
-      let item = {
-        'qty'     : line.qty,
-        'opts'    : line.opts || {},
-        'user'    : await order.get('user'),
-        'product' : await Product.findById(line.product)
-      };
+      // get product
+      let product = await Product.findById(line.product);
 
-      // return price
-      await this.eden.hook('product.order', item);
+      // get price
+      let price = await ProductHelper.price(product, line.opts || {});
 
-      // let opts
-      let opts = {
-        'qty'   : parseInt(line.qty),
-        'item'  : item,
-        'base'  : (parseFloat(item.price) || 0),
-        'price' : (parseFloat(item.price) || 0) * parseInt(line.qty),
-        'order' : order
-      };
+      // return value
+      let amount = parseFloat(price.amount) * parseInt(line.qty || 1);
 
-      // price item
-      await this.eden.hook('line.price', opts);
+      // hook
+      await this.eden.hook('line.price', {
+        'qty'  : line.qty,
+        'user' : await order.get('user'),
+        'opts' : line.opts,
+
+        order,
+        price,
+        amount,
+        product
+      });
 
       // return object
       return {
-        'sku'      : item.product.get('sku') + (Object.values(line.opts || [])).join('_'),
-        'name'     : item.product.get('title.en-us'),
-        'type'     : item.product.get('type'),
-        'price'    : money.floatToAmount(opts.base),
-        'period'   : opts.period,
+        'sku'      : product.get('sku') + (Object.values(line.opts || {})).join('_'),
+        'name'     : product.get('title.en-us'),
+        'type'     : product.get('type'),
+        'price'    : money.floatToAmount(parseFloat(price.amount)),
+        'period'   : line.opts.period,
         'currency' : payment.get('currency') || 'USD',
-        'quantity' : opts.qty,
+        'quantity' : line.qty
       };
     }));
+
+    console.log(items); return;
 
     // get all subscription items
     let subscriptionItems = items.filter((item) => {
