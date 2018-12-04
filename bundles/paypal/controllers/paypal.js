@@ -383,7 +383,7 @@ class PaypalController extends Controller {
         'period'   : (line.opts || {}).period,
         'product'  : product.get('_id').toString(),
         'currency' : payment.get('currency') || 'USD',
-        'quantity' : line.qty
+        'quantity' : parseInt(line.qty || 1)
       };
     }));
 
