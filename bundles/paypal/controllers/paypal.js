@@ -9,6 +9,9 @@ const Controller = require('controller');
 const Payment = model('payment');
 const Product = model('product');
 
+// require helpers
+const ProductHelper = helper('product');
+
 /**
  * build example dameon class
  *
@@ -54,6 +57,7 @@ class PaypalController extends Controller {
    * @param res
    *
    * @route    {get} /process
+   * @route    {get} /process/:id
    */
   async processAction (req, res) {
     // get payment id from query
@@ -63,7 +67,7 @@ class PaypalController extends Controller {
     let paymentId = req.query.paymentId;
 
     // get payment
-    let payment = await Payment.findOne({
+    let payment = req.params.id ? await Payment.findById(req.params.id) : await Payment.findOne({
       'paypal.id'   : paymentId,
       'method.type' : 'paypal'
     });
@@ -72,45 +76,84 @@ class PaypalController extends Controller {
     if (!payment) return res.redirect('/checkout');
 
     // get order
-    let order = await (await payment.get('invoice')).get('order');
+    let order         = await (await payment.get('invoice')).get('order');
+    let subscriptions = await order.get('subscriptions');
 
     // await payment create
-    paypal.payment.execute(paymentId, payerId, async (error, payment) => {
-      // check error
-      if (error) {
-        // set error
-        payment.set('error', error.toString());
+    if (subscriptions && subscriptions.length) {
+      // execute payment
+      paypal.billingAgreement.execute(req.query.token, async (error, agreement) => {
+        // check error
+        if (error) {
+          // set error
+          payment.set('error', error.toString());
 
-        // redirect to order page
-        res.redirect('/order/' + order.get('_id').toString());
-      }
+          // redirect to order page
+          res.redirect('/order/' + order.get('_id').toString());
+        }
 
-      // check state
-      if (payment.state === 'approved') {
         // remove redirect
         order.set('redirect', null);
 
         // set payment info
         payment.set('complete',     true);
         payment.set('data.payment', payment);
-      } else {
-        // set payment details
-        payment.set('complete', false);
-        payment.set('error', {
-          'id'   : 'paypal.fail',
-          'text' : 'Payment not successful'
+
+        // save payment
+        await payment.save();
+
+        // save order
+        await order.save();
+
+        // loop subscriptions
+        subscriptions.forEach((subscription) => {
+          // set paypal
+          subscription.set('paypal', agreement);
+          subscription.save();
         });
-      }
 
-      // save payment
-      await payment.save();
+        // redirect to order page
+        res.redirect('/order/' + order.get('_id').toString());
+      });
+    } else {
+      // execute payment
+      paypal.payment.execute(paymentId, payerId, async (error, paypalPayment) => {
+        // check error
+        if (error) {
+          // set error
+          payment.set('error', error.toString());
 
-      // save order
-      await order.save();
+          // redirect to order page
+          res.redirect('/order/' + order.get('_id').toString());
+        }
 
-      // redirect to order page
-      res.redirect('/order/' + order.get('_id').toString());
-    });
+        // check state
+        if (paypalPayment.state === 'approved') {
+          // remove redirect
+          order.set('redirect', null);
+
+          // set payment info
+          payment.set('complete',     true);
+          payment.set('data.payment', paypalPayment);
+        } else {
+          // set payment details
+          payment.set('complete', false);
+          payment.set('error', {
+            'id'   : 'paypal.fail',
+            'text' : 'Payment not successful'
+          });
+        }
+
+        // save payment
+        await payment.save();
+
+        // save order
+        await order.save();
+
+        // redirect to order page
+        res.redirect('/order/' + order.get('_id').toString());
+      });
+    }
   }
 
   /**
@@ -195,16 +238,16 @@ class PaypalController extends Controller {
         'name'     : product.get('title.en-us'),
         'price'    : money.floatToAmount(parseFloat(price.amount)),
         'currency' : payment.get('currency') || 'USD',
-        'quantity' : line.qty
+        'quantity' : parseInt(line.qty)
       };
     }));
 
     // get real total
-    let realDisc  = '0';
+    let realDisc  = '0.00';
     let realTotal = items.reduce((accum, line) => {
       // return accum
       return money.add(accum, money.floatToAmount(parseFloat(line.price) * (line.quantity || 1)));
-    }, '0');
+    }, '0.00');
 
     // check discount
     if (money.isNegative(money.subtract(money.floatToAmount(payment.get('amount')), realTotal))) {
@@ -332,13 +375,13 @@ class PaypalController extends Controller {
         'name'     : product.get('title.en-us'),
         'type'     : product.get('type'),
         'price'    : money.floatToAmount(parseFloat(price.amount)),
-        'period'   : line.opts.period,
+        'amount'   : amount,
+        'period'   : (line.opts || {}).period,
+        'product'  : product.get('_id').toString(),
         'currency' : payment.get('currency') || 'USD',
         'quantity' : line.qty
       };
     }));
-
-    console.log(items); return;
 
     // get all subscription items
     let subscriptionItems = items.filter((item) => {
@@ -353,11 +396,11 @@ class PaypalController extends Controller {
     });
 
     // get real total
-    let normalDisc  = '0';
+    let normalDisc  = '0.00';
     let normalTotal = normalItems.reduce((accum, line) => {
       // return accum
       return money.add(accum, money.floatToAmount(parseFloat(line.price) * (line.quantity || 1)));
-    }, '0');
+    }, '0.00');
 
     // set periods
     let periods = {
@@ -383,49 +426,48 @@ class PaypalController extends Controller {
       }
     };
 
+    // create subscription element
+    let paymentDefinition = {
+      'name'               : 'Subscription #' + order.get('_id').toString() + ' ' + (new Date()).toISOString(),
+      'type'               : 'REGULAR',
+      'frequency'          : periods[subscriptionItems[0].period].frequency,
+      'frequency_interval' : periods[subscriptionItems[0].period].frequency_interval,
+      'amount' : {
+        'value' : subscriptionItems.reduce((total, item) => {
+          // return money add
+          return money.add(total, money.floatToAmount(item.amount));
+        }, '0.00'),
+        'currency' : 'USD'
+      },
+      'cycles' : '0'
+    };
+
     // get total
     let billingPlan = {
-      'name'        : 'Subscription plan for #' + payment.get('_id').toString(),
-      'type'        : 'INFINITE',
-      'description' : 'Subscription plan for #' + payment.get('_id').toString(),
-      'payment_definitions' : subscriptions.map((subscription) => {
-        // get item
-        let item = subscriptionItems.find((i) => i.period === subscription.get('period') && i.product === subscription.get('product.id'));
-
-        // return array
-        return [
-          {
-            'name'               : 'Subscription #' + subscription.get('_id').toString(),
-            'type'               : 'REGULAR',
-            'frequency'          : periods[subscription.get('period')].frequency,
-            'frequency_interval' : periods[subscription.get('period')].frequency_interval,
-            'amount' : {
-              'value'    : money.floatToAmount(parseFloat(item.price) / item.qty),
-              'currency' : 'USD'
-            },
-            'cycles' : '0'
-          }
-        ];
-      }),
+      'name'                 : 'Subscription plan for #' + payment.get('_id').toString(),
+      'type'                 : 'INFINITE',
+      'description'          : 'Subscription plan for #' + payment.get('_id').toString(),
+      'payment_definitions'  : [paymentDefinition],
       'merchant_preferences' : {
         'setup_fee' : {
-          'value'    : normalTotal,
+          'value' : money.add(normalTotal, subscriptionItems.reduce((total, item) => {
+            // return money add
+            return money.add(total, money.floatToAmount(item.amount));
+          }, '0')),
           'currency' : 'USD'
         },
-        'return_url'                 : 'https://' + config.get('domain') + '/paypal/process',
+        'return_url'                 : 'https://' + config.get('domain') + '/paypal/process/' + payment.get('_id').toString(),
         'cancel_url'                 : 'https://' + config.get('domain') + '/paypal/cancel',
         'auto_bill_amount'           : 'YES',
-        'max_fail_attempts'          : '0',
+        'max_fail_attempts'          : '1',
         'initial_fail_amount_action' : 'CONTINUE'
       }
     };
 
-    console.log(billingPlan); return;
-
     // create billing plan
     let createdPlan = await new Promise((resolve, reject) => {
       // create plan
-      paypal.billingPlan.create(billingPlan, (e, plan) => {
+      paypal.billingPlan.create(JSON.stringify(billingPlan), (e, plan) => {
         // reject error
         if (e) return reject(e);
 
@@ -454,10 +496,15 @@ class PaypalController extends Controller {
       });
     });
 
+    // create iso date
+    let isoDate = new Date();
+    isoDate.setSeconds(isoDate.getSeconds() + 5);
+    isoDate.toISOString().slice(0, 19) + 'Z';
+
     // create actual agreement
     let billingAgreement = {
       'name'        : 'Payment for invoice #' + invoice.get('_id').toString() + '.',
-      'start_date'  : ((new Date()).toISOString().slice(0, 19) + 'Z'),
+      'start_date'  : isoDate,
       'description' : 'Payment for invoice #' + invoice.get('_id').toString() + '.',
       'plan' : {
         'id' : createdPlan.id
@@ -470,7 +517,7 @@ class PaypalController extends Controller {
     // create paypal redirect url
     return await new Promise((resolve, reject) => {
       // create payment
-      paypal.billingAgreement.create(billingAgreement, (e, billingAgreement) => {
+      paypal.billingAgreement.create(JSON.stringify(billingAgreement), (e, billingAgreement) => {
         // get links
         let links = {};
 
@@ -498,9 +545,7 @@ class PaypalController extends Controller {
           payment.set('data', {
             'redirect' : links['approval_url'].href
           });
-          payment.set('paypal', {
-            'id' : billingAgreement.id
-          });
+          payment.set('paypal', billingAgreement);
 
           // set redirect
           return resolve(payment.set('redirect', payment.get('data.redirect')));
