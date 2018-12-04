@@ -108,7 +108,11 @@ class PaypalController extends Controller {
         // loop subscriptions
         subscriptions.forEach((subscription) => {
           // set paypal
-          subscription.set('paypal', agreement);
+          subscription.set('state',   'active');
+          subscription.set('paypal',  agreement);
+          subscription.set('started', new Date());
+
+          // save subscription
           subscription.save();
         });
 
