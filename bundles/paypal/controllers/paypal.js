@@ -102,19 +102,17 @@ class PaypalController extends Controller {
         // save payment
         await payment.save();
 
-        // save order
-        await order.save();
-
         // loop subscriptions
-        subscriptions.forEach((subscription) => {
+        await Promise.all(subscriptions.map(async (subscription) => {
           // set paypal
-          subscription.set('state',   'active');
-          subscription.set('paypal',  agreement);
-          subscription.set('started', new Date());
+          subscription.set('paypal', agreement);
 
           // save subscription
-          subscription.save();
-        });
+          await subscription.save();
+        }));
+
+        // save order
+        await order.save();
 
         // redirect to order page
         res.redirect('/order/' + order.get('_id').toString());
