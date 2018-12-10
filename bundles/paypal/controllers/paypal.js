@@ -239,7 +239,7 @@ class PaypalController extends Controller {
         'sku'      : product.get('sku') + (Object.values(line.opts || {})).join('_'),
         'name'     : product.get('title.en-us'),
         'price'    : money.floatToAmount(parseFloat(price.amount)),
-        'currency' : payment.get('currency') || 'USD',
+        'currency' : payment.get('currency') || config.get('shop.currency') || 'USD',
         'quantity' : parseInt(line.qty)
       };
     }));
@@ -261,7 +261,7 @@ class PaypalController extends Controller {
         'sku'      : 'discount',
         'name'     : 'Discount',
         'price'    : realDisc,
-        'currency' : payment.get('currency') || 'USD',
+        'currency' : payment.get('currency') || config.get('shop.currency') || 'USD',
         'quantity' : 1
       });
     }
@@ -282,7 +282,7 @@ class PaypalController extends Controller {
         },
         'amount' : {
           'total'    : money.add(realTotal, realDisc),
-          'currency' : payment.get('currency') || 'USD'
+          'currency' : payment.get('currency') || config.get('shop.currency') || 'USD'
         },
         'description' : 'Payment for invoice #' + invoice.get('_id').toString() + '.'
       }]
@@ -380,7 +380,7 @@ class PaypalController extends Controller {
         'amount'   : amount,
         'period'   : (line.opts || {}).period,
         'product'  : product.get('_id').toString(),
-        'currency' : payment.get('currency') || 'USD',
+        'currency' : payment.get('currency') || config.get('shop.currency') || 'USD',
         'quantity' : parseInt(line.qty || 1)
       };
     }));
@@ -439,7 +439,7 @@ class PaypalController extends Controller {
           // return money add
           return money.add(total, money.floatToAmount(item.amount));
         }, '0.00'),
-        'currency' : 'USD'
+        'currency' : config.get('shop.currency') || 'USD'
       },
       'cycles' : '0'
     };
@@ -456,7 +456,7 @@ class PaypalController extends Controller {
             // return money add
             return money.add(total, money.floatToAmount(item.amount));
           }, '0')),
-          'currency' : 'USD'
+          'currency' : config.get('shop.currency') || 'USD'
         },
         'return_url'                 : 'https://' + config.get('domain') + '/paypal/process/' + payment.get('_id').toString(),
         'cancel_url'                 : 'https://' + config.get('domain') + '/paypal/cancel',
