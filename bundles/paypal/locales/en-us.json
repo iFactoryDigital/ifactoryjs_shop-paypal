@@ -1,5 +1,6 @@
 {
   "paypal" : {
+    "title"  : "PayPal",
     "method" : "Checkout with PayPal",
 
     "order" : {
