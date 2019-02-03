@@ -1,7 +1,15 @@
 {
   "name": "@edenjs/shop-paypal",
-  "version": "1.0.20",
   "description": "",
+  "version": "1.0.20",
+  "dependencies": {
+    "money-math": "^2.5.1",
+    "paypal-rest-sdk": "^1.8.1",
+    "uuid": "^3.3.2"
+  },
+  "engines": {
+    "node": ">= 8.0.0"
+  },
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -16,9 +24,12 @@
     "url": "https://github.com/eden-js/shop-paypal/issues"
   },
   "homepage": "https://github.com/eden-js/shop-paypal#readme",
-  "dependencies": {
-    "money-math": "^2.5.1",
-    "paypal-rest-sdk": "^1.8.1",
-    "uuid": "^3.3.2"
+  "devDependencies": {
+    "eslint": "^5.13.0",
+    "@edenjs/eslint-config-eden": "^2.0.14",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-jsx-a11y": "^6.2.0",
+    "eslint-plugin-react": "^7.12.4"
   }
 }
