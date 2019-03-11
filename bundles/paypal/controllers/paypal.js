@@ -270,8 +270,6 @@ class PaypalController extends Controller {
       }],
     });
 
-    console.log(items);
-
     // create paypal redirect url
     return await new Promise((resolve, reject) => {
       // create payment
