@@ -100,7 +100,7 @@ class PaypalController extends Controller {
         payment.set('data.payment', payment);
 
         // save payment
-        await payment.save();
+        await payment.save(await order.get('user'));
 
         // loop subscriptions
         await Promise.all(subscriptions.map(async (subscription) => {
@@ -108,11 +108,11 @@ class PaypalController extends Controller {
           subscription.set('paypal', agreement);
 
           // save subscription
-          await subscription.save();
+          await subscription.save(await order.get('user'));
         }));
 
         // save order
-        await order.save();
+        await order.save(await order.get('user'));
 
         // redirect to order page
         res.redirect(`/order/${order.get('_id').toString()}`);
@@ -147,10 +147,10 @@ class PaypalController extends Controller {
         }
 
         // save payment
-        await payment.save();
+        await payment.save(await order.get('user'));
 
         // save order
-        await order.save();
+        await order.save(await order.get('user'));
 
         // redirect to order page
         res.redirect(`/order/${order.get('_id').toString()}`);
@@ -210,41 +210,23 @@ class PaypalController extends Controller {
     const invoice = await payment.get('invoice');
     const order   = await invoice.get('order');
 
+    // map lines
+    const lines = await orderHelper.lines(invoice.get('lines'));
+
     // let items
-    const items = await Promise.all(invoice.get('lines').map(async (line) => {
-      // get product
-      const product = await Product.findById(line.product);
-
-      // get price
-      const price = await ProductHelper.price(product, line.opts || {});
-
-      // return value
-      const amount = parseFloat(price.amount) * parseInt(line.qty || 1);
-
-      // hook
-      await this.eden.hook('line.price', {
-        qty  : line.qty,
-        user : await order.get('user'),
-        opts : line.opts,
-
-        order,
-        price,
-        amount,
-        product,
-      });
-
+    const items = lines.map((line) => {
       // return object
       return {
-        sku      : product.get('sku') + (Object.values(line.opts || {})).join('_'),
-        name     : product.get('title.en-us'),
-        price    : money.floatToAmount(parseFloat(price.amount)),
+        sku      : line.sku,
+        name     : line.title,
+        price    : money.floatToAmount(parseFloat(line.price)),
         currency : payment.get('currency') || config.get('shop.currency') || 'USD',
         quantity : parseInt(line.qty),
       };
-    }));
+    });
 
     // get real total
-    let realDisc  = '0.00';
+    let realDisc = '0.00';
     const realTotal = items.reduce((accum, line) => {
       // return accum
       return money.add(accum, money.floatToAmount(parseFloat(line.price) * (line.quantity || 1)));
@@ -371,11 +353,11 @@ class PaypalController extends Controller {
 
       // return object
       return {
+        amount,
         sku      : product.get('sku') + (Object.values(line.opts || {})).join('_'),
         name     : product.get('title.en-us'),
         type     : product.get('type'),
         price    : money.floatToAmount(parseFloat(price.amount)),
-        amount,
         period   : (line.opts || {}).period,
         product  : product.get('_id').toString(),
         currency : payment.get('currency') || config.get('shop.currency') || 'USD',
