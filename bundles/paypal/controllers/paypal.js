@@ -329,36 +329,21 @@ class PaypalController extends Controller {
     const invoice = await payment.get('invoice');
     const order   = await invoice.get('order');
 
+    // map lines
+    const lines = await orderHelper.lines(order);
+
     // let items
-    const items = await Promise.all(invoice.get('lines').map(async (line) => {
+    const items = await Promise.all(lines.map(async (line) => {
       // get product
       const product = await Product.findById(line.product);
 
-      // get price
-      const price = await productHelper.price(product, line.opts || {});
-
-      // return value
-      const amount = parseFloat(price.amount) * parseInt(line.qty || 1);
-
-      // hook
-      await this.eden.hook('line.price', {
-        qty  : line.qty,
-        user : await order.get('user'),
-        opts : line.opts,
-
-        order,
-        price,
-        amount,
-        product,
-      });
-
       // return object
       return {
-        amount,
         sku      : product.get('sku') + (Object.values(line.opts || {})).join('_'),
         name     : product.get('title.en-us'),
         type     : product.get('type'),
-        price    : money.floatToAmount(parseFloat(price.amount)),
+        price    : money.floatToAmount(parseFloat(line.price)),
+        amount   : money.floatToAmount(parseFloat(line.amount)),
         period   : (line.opts || {}).period,
         product  : product.get('_id').toString(),
         currency : payment.get('currency') || config.get('shop.currency') || 'USD',
