@@ -39,6 +39,30 @@ class PaypalDaemon extends Daemon {
       // save subscription
       await subscription.save();
     });
+
+    // update agreement
+    this.eden.endpoint('subscription.paypal.update', async (subscription) => {
+      // cancel subscription
+      const agreement = await new Promise((resolve, reject) => paypal.billingAgreement.get(subscription.get('paypal.id'), (err, res) => {
+        // check error
+        if (err) return reject(err);
+
+        // resolve
+        resolve(res);
+      }));
+
+      // check state
+      if (agreement.state === 'Cancelled') {
+        // set state
+        subscription.set('cancel', agreement);
+
+        // set state
+        subscription.set('state', 'cancelled');
+
+        // save subscription
+        await subscription.save();
+      }
+    });
   }
 }
 
