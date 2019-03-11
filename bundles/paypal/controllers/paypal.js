@@ -10,7 +10,8 @@ const Payment = model('payment');
 const Product = model('product');
 
 // require helpers
-const ProductHelper = helper('product');
+const orderHelper   = helper('order');
+const productHelper = helper('product');
 
 /**
  * build example dameon class
@@ -211,7 +212,7 @@ class PaypalController extends Controller {
     const order   = await invoice.get('order');
 
     // map lines
-    const lines = await orderHelper.lines(invoice.get('lines'));
+    const lines = await orderHelper.lines(order);
 
     // let items
     const items = lines.map((line) => {
@@ -268,6 +269,8 @@ class PaypalController extends Controller {
         description : `Payment for invoice #${invoice.get('_id').toString()}.`,
       }],
     });
+
+    console.log(items);
 
     // create paypal redirect url
     return await new Promise((resolve, reject) => {
@@ -334,7 +337,7 @@ class PaypalController extends Controller {
       const product = await Product.findById(line.product);
 
       // get price
-      const price = await ProductHelper.price(product, line.opts || {});
+      const price = await productHelper.price(product, line.opts || {});
 
       // return value
       const amount = parseFloat(price.amount) * parseInt(line.qty || 1);
