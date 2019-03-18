@@ -35,9 +35,12 @@ class PaypalDaemon extends Daemon {
 
       // set state
       subscription.set('state', 'cancelled');
+      subscription.set('cancel_at', new Date());
 
       // save subscription
       await subscription.save();
+
+      // emit
     });
 
     // update agreement
@@ -55,6 +58,7 @@ class PaypalDaemon extends Daemon {
       if (agreement.state === 'Cancelled') {
         // set state
         subscription.set('cancel', agreement);
+        subscription.set('cancel_at', new Date());
 
         // set state
         subscription.set('state', 'cancelled');
