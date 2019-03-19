@@ -79,7 +79,7 @@ class PaypalController extends Controller {
     // get order
     const invoice       = await payment.get('invoice');
     const orders        = await invoice.get('orders');
-    const subscriptions = [].concat(...(await Promise.all(orders.map(order => order.get('subscriptions')))));
+    const subscriptions = [].concat(...(await Promise.all(orders.map(order => order.get('subscriptions'))))).filter(s => s);
 
     // await payment create
     if (subscriptions && subscriptions.length) {
@@ -189,7 +189,7 @@ class PaypalController extends Controller {
     const orders  = await invoice.get('orders');
 
     // check type
-    const subscriptions = [].concat(...(await Promise.all(orders.map(order => order.get('subscriptions')))));
+    const subscriptions = [].concat(...(await Promise.all(orders.map(order => order.get('subscriptions'))))).filter(s => s);
 
     // check if subscription
     if (subscriptions && subscriptions.length) {
