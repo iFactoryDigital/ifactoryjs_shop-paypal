@@ -347,6 +347,7 @@ class PaypalController extends Controller {
         amount   : money.floatToAmount(parseFloat(line.amount)),
         period   : (line.opts || {}).period,
         product  : product.get('_id').toString(),
+        discount : line.discount || 0,
         currency : payment.get('currency') || config.get('shop.currency') || 'USD',
         quantity : parseInt(line.qty || 1),
       };
@@ -369,6 +370,13 @@ class PaypalController extends Controller {
     const normalTotal = normalItems.reduce((accum, line) => {
       // return accum
       return money.add(accum, money.floatToAmount(parseFloat(line.price) * (line.quantity || 1)));
+    }, '0.00');
+    const initialTotal = subscriptionItems.reduce((accum, line) => {
+      // return accum
+      accum = money.add(accum, money.floatToAmount(parseFloat(line.price) * (line.quantity || 1)));
+
+      // return value
+      return money.subtract(accum, money.floatToAmount(line.discount));
     }, '0.00');
 
     // set periods
@@ -419,10 +427,7 @@ class PaypalController extends Controller {
       payment_definitions  : [paymentDefinition],
       merchant_preferences : {
         setup_fee : {
-          value : money.add(normalTotal, subscriptionItems.reduce((total, item) => {
-            // return money add
-            return money.add(total, money.floatToAmount(item.amount));
-          }, '0')),
+          value    : money.add(normalTotal, initialTotal),
           currency : config.get('shop.currency') || 'USD',
         },
         return_url                 : `https://${config.get('domain')}/paypal/process/${payment.get('_id').toString()}`,
