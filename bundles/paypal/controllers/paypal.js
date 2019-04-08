@@ -3,6 +3,7 @@
 const money      = require('money-math');
 const config     = require('config');
 const paypal     = require('paypal-rest-sdk');
+const moment     = require('moment');
 const Controller = require('controller');
 
 // get models
@@ -403,6 +404,28 @@ class PaypalController extends Controller {
       },
     };
 
+    // set trial definition
+    let trialDefinition = null;
+
+    // check trial
+    if (invoice.get('trial')) {
+      // get diff
+      const diff = Math.ceil(moment(invoice.get('trial')).diff(moment(), `${periods[subscriptionItems[0].period].frequency_interval}s`.toLowerCase(), true));
+
+      // set trial definition
+      trialDefinition = {
+        name               : `Subscription #${invoice.get('_id').toString()} ${(new Date()).toISOString()} Trial`,
+        type               : 'TRIAL',
+        frequency          : periods[subscriptionItems[0].period].frequency,
+        frequency_interval : periods[subscriptionItems[0].period].frequency_interval,
+        amount             : {
+          value    : '0.00',
+          currency : config.get('shop.currency') || 'USD',
+        },
+        cycles : Math.ceil(diff / parseInt(periods[subscriptionItems[0].period].frequency)).toString(),
+      };
+    }
+
     // create subscription element
     const paymentDefinition = {
       name               : `Subscription #${invoice.get('_id').toString()} ${(new Date()).toISOString()}`,
@@ -424,7 +447,7 @@ class PaypalController extends Controller {
       name                 : `Subscription plan for #${payment.get('_id').toString()}`,
       type                 : 'INFINITE',
       description          : `Subscription plan for #${payment.get('_id').toString()}`,
-      payment_definitions  : [paymentDefinition],
+      payment_definitions  : trialDefinition ? [paymentDefinition, trialDefinition] : [paymentDefinition],
       merchant_preferences : {
         setup_fee : {
           value    : money.add(normalTotal, initialTotal),
