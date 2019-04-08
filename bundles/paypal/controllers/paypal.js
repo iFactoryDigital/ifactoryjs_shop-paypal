@@ -88,11 +88,12 @@ class PaypalController extends Controller {
       paypal.billingAgreement.execute(req.query.token, async (error, agreement) => {
         // check error
         if (error) {
+          console.log(error);
           // set error
           payment.set('error', error.toString());
 
           // redirect to order page
-          res.redirect(`/order/${orders[0].get('_id').toString()}`);
+          return res.redirect(`/order/${orders[0].get('_id').toString()}`);
         }
 
         // remove redirect
@@ -495,7 +496,7 @@ class PaypalController extends Controller {
 
     // create iso date
     const isoDate = new Date();
-    isoDate.setSeconds(isoDate.getSeconds() + 5);
+    isoDate.setHours(isoDate.getHours() + 1);
     `${isoDate.toISOString().slice(0, 19)}Z`;
 
     // create actual agreement
