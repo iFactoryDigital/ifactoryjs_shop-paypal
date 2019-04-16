@@ -346,7 +346,7 @@ class PaypalController extends Controller {
         name     : product.get('title.en-us'),
         type     : product.get('type'),
         price    : money.floatToAmount(parseFloat(line.price)),
-        amount   : money.floatToAmount(parseFloat(line.amount)),
+        amount   : money.floatToAmount(parseFloat(line.total - (line.discount || 0))),
         period   : (line.opts || {}).period,
         product  : product.get('_id').toString(),
         discount : line.discount || 0,
@@ -368,11 +368,8 @@ class PaypalController extends Controller {
     });
 
     // get real total
-    const normalDisc  = '0.00';
-    const normalTotal = normalItems.reduce((accum, line) => {
-      // return accum
-      return money.add(accum, money.floatToAmount(parseFloat(line.price) * (line.quantity || 1)));
-    }, '0.00');
+    const normalDisc   = '0.00';
+    const normalTotal  = money.floatToAmount(payment.get('amount'));
     const initialTotal = subscriptionItems.reduce((accum, line) => {
       // return accum
       accum = money.add(accum, money.floatToAmount(parseFloat(line.price) * (line.quantity || 1)));
@@ -411,7 +408,7 @@ class PaypalController extends Controller {
     // check trial
     if (invoice.get('trial')) {
       // get diff
-      const diff = Math.ceil(moment(invoice.get('trial')).diff(moment(), `${periods[subscriptionItems[0].period].frequency_interval}s`.toLowerCase(), true));
+      const diff = Math.ceil(moment(invoice.get('trial')).diff(moment(), `${periods[subscriptionItems[0].period].frequency}s`.toLowerCase(), true));
 
       // set trial definition
       trialDefinition = {
@@ -423,7 +420,7 @@ class PaypalController extends Controller {
           value    : '0.00',
           currency : config.get('shop.currency') || 'USD',
         },
-        cycles : Math.ceil(diff / parseInt(periods[subscriptionItems[0].period].frequency)).toString(),
+        cycles : Math.ceil(diff / parseInt(periods[subscriptionItems[0].period].frequency_interval)).toString(),
       };
     }
 
@@ -451,7 +448,7 @@ class PaypalController extends Controller {
       payment_definitions  : trialDefinition ? [paymentDefinition, trialDefinition] : [paymentDefinition],
       merchant_preferences : {
         setup_fee : {
-          value    : money.add(normalTotal, initialTotal),
+          value    : money.subtract(normalTotal, initialTotal),
           currency : config.get('shop.currency') || 'USD',
         },
         return_url                 : `https://${config.get('domain')}/paypal/process/${payment.get('_id').toString()}`,
