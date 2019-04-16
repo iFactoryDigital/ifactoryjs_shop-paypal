@@ -69,10 +69,10 @@ class PaypalController extends Controller {
     const paymentId = req.query.paymentId;
 
     // get payment
-    const payment = req.params.id ? await Payment.findById(req.params.id) : await Payment.findOne({
+    const payment = req.params.id ? await Payment.findById(req.params.id) : await Payment.where({
       'paypal.id'   : paymentId,
       'method.type' : 'paypal',
-    });
+    }).sort('created_at', 1).findOne();
 
     // check payment
     if (!payment) return res.redirect('/checkout');
@@ -83,12 +83,11 @@ class PaypalController extends Controller {
     const subscriptions = [].concat(...(await Promise.all(orders.map(order => order.get('subscriptions'))))).filter(s => s);
 
     // await payment create
-    if (subscriptions && subscriptions.length) {
+    if ((subscriptions && subscriptions.length) || payment.get('paypal.plan')) {
       // execute payment
       paypal.billingAgreement.execute(req.query.token, async (error, agreement) => {
         // check error
         if (error) {
-          console.log(error);
           // set error
           payment.set('error', error.toString());
 
