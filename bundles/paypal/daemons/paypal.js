@@ -24,7 +24,7 @@ class PaypalDaemon extends Daemon {
     this.eden.endpoint('subscription.paypal.cancel', async (subscription) => {
       // return on no sub id
       if (!subscription.get('paypal.id')) return;
-      
+
       // cancel subscription
       subscription.set('cancel', await new Promise((resolve, reject) => paypal.billingAgreement.cancel(subscription.get('paypal.id'), {
         note : 'Cancelled as per request',
@@ -42,8 +42,6 @@ class PaypalDaemon extends Daemon {
 
       // save subscription
       await subscription.save();
-
-      // emit
     });
 
     // update agreement
