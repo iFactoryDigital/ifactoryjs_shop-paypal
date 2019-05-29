@@ -78,12 +78,11 @@ class PaypalController extends Controller {
     if (!payment) return res.redirect('/checkout');
 
     // get order
-    const invoice       = await payment.get('invoice');
-    const orders        = await invoice.get('orders');
-    const subscriptions = [].concat(...(await Promise.all(orders.map(order => order.get('subscriptions'))))).filter(s => s);
+    const invoice = await payment.get('invoice');
+    const orders  = await invoice.get('orders');
 
     // await payment create
-    if ((subscriptions && subscriptions.length) || payment.get('paypal.plan')) {
+    if (payment.get('paypal.plan')) {
       // execute payment
       paypal.billingAgreement.execute(req.query.token, async (error, agreement) => {
         // check error
@@ -105,6 +104,12 @@ class PaypalController extends Controller {
         // save payment
         await payment.save(await orders[0].get('user'));
 
+        // save order
+        await Promise.all(orders.map(order => order.save()));
+
+        // get subscriptions
+        const subscriptions = [].concat(...(await Promise.all(orders.map(order => order.get('subscriptions'))))).filter(s => s);
+
         // loop subscriptions
         await Promise.all(subscriptions.map(async (subscription) => {
           // set paypal
@@ -113,9 +118,6 @@ class PaypalController extends Controller {
           // save subscription
           await subscription.save(await orders[0].get('user'));
         }));
-
-        // save order
-        await Promise.all(orders.map(order => order.save()));
 
         // redirect to order page
         res.redirect(`/order/${orders[0].get('_id').toString()}`);
