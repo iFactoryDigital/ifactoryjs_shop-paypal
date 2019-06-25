@@ -98,8 +98,8 @@ class PaypalController extends Controller {
         orders.forEach((order) => order.set('redirect', null));
 
         // set payment info
-        payment.set('complete', true);
-        payment.set('data.payment', payment);
+        payment.set('complete', new Date());
+        payment.set('data.payment', agreement);
 
         // save payment
         await payment.save(await orders[0].get('user'));
@@ -140,7 +140,7 @@ class PaypalController extends Controller {
           orders.forEach((order) => order.set('redirect', null));
 
           // set payment info
-          payment.set('complete', true);
+          payment.set('complete', new Date());
           payment.set('data.payment', paypalPayment);
         } else {
           // set payment details

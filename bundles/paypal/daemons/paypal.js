@@ -21,12 +21,12 @@ class PaypalDaemon extends Daemon {
     paypal.configure(config.get('paypal'));
 
     // add endpoint
-    this.eden.endpoint('subscription.paypal.cancel', async (subscription) => {
+    this.eden.endpoint('subscription.paypal.cancel', async (subscription, payment) => {
       // return on no sub id
-      if (!subscription.get('paypal.id')) return;
+      if (!subscription.get('paypal.id') || !payment.get('data.payment.id')) return;
 
       // cancel subscription
-      subscription.set('cancel', await new Promise((resolve, reject) => paypal.billingAgreement.cancel(subscription.get('paypal.id'), {
+      subscription.set('cancel', await new Promise((resolve, reject) => paypal.billingAgreement.cancel(subscription.get('paypal.id') || payment.get('data.payment.id'), {
         note : 'Cancelled as per request',
       }, (err, res) => {
         // check error
@@ -45,12 +45,12 @@ class PaypalDaemon extends Daemon {
     });
 
     // update agreement
-    this.eden.endpoint('subscription.paypal.update', async (subscription) => {
+    this.eden.endpoint('subscription.paypal.update', async (subscription, payment) => {
       // return on no sub id
-      if (!subscription.get('paypal.id')) return;
+      if (!subscription.get('paypal.id') || !payment.get('data.payment.id')) return;
 
       // cancel subscription
-      const agreement = await new Promise((resolve, reject) => paypal.billingAgreement.get(subscription.get('paypal.id'), (err, res) => {
+      const agreement = await new Promise((resolve, reject) => paypal.billingAgreement.get(subscription.get('paypal.id') || payment.get('data.payment.id'), (err, res) => {
         // check error
         if (err) return reject(err);
 
