@@ -1,7 +1,7 @@
 {
   "name": "@edenjs/shop-paypal",
   "description": "",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "dependencies": {
     "money-math": "^2.5.1",
     "paypal-rest-sdk": "^1.8.1",
