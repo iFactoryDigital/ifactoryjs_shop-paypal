@@ -13,9 +13,9 @@ class PaypalDaemon extends Daemon {
   /**
    * construct paypal daemon
    */
-  constructor() {
+  constructor(...args) {
     // run super
-    super(...arguments);
+    super(...args);
 
     // bind variables
     paypal.configure(config.get('paypal'));
@@ -33,7 +33,7 @@ class PaypalDaemon extends Daemon {
         if (err) return reject(err);
 
         // resolve
-        resolve(res);
+        return resolve(res);
       })));
 
       // set state
@@ -55,7 +55,7 @@ class PaypalDaemon extends Daemon {
         if (err) return reject(err);
 
         // resolve
-        resolve(res);
+        return resolve(res);
       }));
 
       // check state
@@ -79,4 +79,4 @@ class PaypalDaemon extends Daemon {
  *
  * @type {*}
  */
-exports = module.exports = PaypalDaemon;
+module.exports = PaypalDaemon;

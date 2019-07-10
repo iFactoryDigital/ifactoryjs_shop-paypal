@@ -1,3 +1,4 @@
+/* eslint-disable consistent-return */
 
 // require dependencies
 const money      = require('money-math');
@@ -9,10 +10,6 @@ const Controller = require('controller');
 // get models
 const Payment = model('payment');
 const Product = model('product');
-
-// require helpers
-const orderHelper   = helper('order');
-const productHelper = helper('product');
 
 /**
  * build example dameon class
@@ -66,7 +63,7 @@ class PaypalController extends Controller {
     const payerId = {
       payer_id : req.query.PayerID,
     };
-    const paymentId = req.query.paymentId;
+    const { paymentId } = req.query;
 
     // get payment
     const payment = req.params.id ? await Payment.findById(req.params.id) : await Payment.where({
@@ -95,7 +92,7 @@ class PaypalController extends Controller {
         }
 
         // remove redirect
-        orders.forEach((order) => order.set('redirect', null));
+        orders.forEach(order => order.set('redirect', null));
 
         // set payment info
         payment.set('complete', new Date());
@@ -137,7 +134,7 @@ class PaypalController extends Controller {
         // check state
         if (paypalPayment.state === 'approved') {
           // remove redirect
-          orders.forEach((order) => order.set('redirect', null));
+          orders.forEach(order => order.set('redirect', null));
 
           // set payment info
           payment.set('complete', new Date());
@@ -185,7 +182,7 @@ class PaypalController extends Controller {
    */
   async _pay(payment) {
     // check method
-    if (payment.get('error') || payment.get('method.type') !== 'paypal') return;
+    if (payment.get('error') || payment.get('method.type') !== 'paypal') return null;
 
     // load user
     const invoice = await payment.get('invoice');
@@ -213,7 +210,6 @@ class PaypalController extends Controller {
   async _normal(payment) {
     // load user
     const invoice = await payment.get('invoice');
-    const orders  = await invoice.get('orders');
 
     // map lines
     const lines = invoice.get('lines');
@@ -226,7 +222,7 @@ class PaypalController extends Controller {
         name     : line.title,
         price    : money.floatToAmount(parseFloat(line.price)),
         currency : payment.get('currency') || config.get('shop.currency') || 'USD',
-        quantity : parseInt(line.qty),
+        quantity : parseInt(line.qty, 10),
       };
     });
 
@@ -275,7 +271,7 @@ class PaypalController extends Controller {
     });
 
     // create paypal redirect url
-    return await new Promise((resolve, reject) => {
+    return await new Promise((resolve) => {
       // create payment
       paypal.payment.create(payReq, (e, paypalPayment) => {
         // get links
@@ -300,7 +296,7 @@ class PaypalController extends Controller {
         });
 
         // If redirect url present, redirect user
-        if (links.hasOwnProperty('approval_url')) {
+        if (links.approval_url) {
           // set date
           payment.set('data', {
             redirect : links.approval_url.href,
@@ -312,6 +308,8 @@ class PaypalController extends Controller {
           // set redirect
           return resolve(payment.set('redirect', payment.get('data.redirect')));
         }
+
+        // resolve
         return resolve(payment.set('error', {
           id   : 'paypal.nourl',
           text : 'no redirect URI present',
@@ -328,10 +326,9 @@ class PaypalController extends Controller {
    *
    * @return {Promise}
    */
-  async _subscription(payment, subscriptions) {
+  async _subscription(payment) {
     // load user
     const invoice = await payment.get('invoice');
-    const orders  = await invoice.get('orders');
 
     // map lines
     const lines = invoice.get('lines');
@@ -352,7 +349,7 @@ class PaypalController extends Controller {
         product  : product.get('_id').toString(),
         discount : line.discount || 0,
         currency : payment.get('currency') || config.get('shop.currency') || 'USD',
-        quantity : parseInt(line.qty || 1),
+        quantity : parseInt(line.qty || 1, 10),
       };
     }));
 
@@ -362,14 +359,7 @@ class PaypalController extends Controller {
       return item.type === 'subscription';
     });
 
-    // get all normal items
-    const normalItems = items.filter((item) => {
-      // check if subscription
-      return item.type !== 'subscription';
-    });
-
     // get real total
-    const normalDisc   = '0.00';
     const normalTotal  = money.floatToAmount(payment.get('amount'));
     const initialTotal = subscriptionItems.reduce((accum, line) => {
       // return accum
@@ -421,7 +411,8 @@ class PaypalController extends Controller {
           value    : '0.00',
           currency : config.get('shop.currency') || 'USD',
         },
-        cycles : Math.ceil(diff / parseInt(periods[subscriptionItems[0].period].frequency_interval)).toString(),
+        // eslint-disable-next-line max-len
+        cycles : Math.ceil(diff / parseInt(periods[subscriptionItems[0].period].frequency_interval, 10)).toString(),
       };
     }
 
@@ -446,6 +437,7 @@ class PaypalController extends Controller {
       name                 : `Subscription plan for #${payment.get('_id').toString()}`,
       type                 : 'INFINITE',
       description          : `Subscription plan for #${payment.get('_id').toString()}`,
+      // eslint-disable-next-line max-len
       payment_definitions  : trialDefinition ? [paymentDefinition, trialDefinition] : [paymentDefinition],
       merchant_preferences : {
         setup_fee : {
@@ -488,14 +480,13 @@ class PaypalController extends Controller {
         if (e) return reject(e);
 
         // resolve
-        resolve(res);
+        return resolve(res);
       });
     });
 
     // create iso date
     const isoDate = new Date();
     isoDate.setHours(isoDate.getHours() + 1);
-    `${isoDate.toISOString().slice(0, 19)}Z`;
 
     // create actual agreement
     const billingAgreement = {
@@ -511,9 +502,9 @@ class PaypalController extends Controller {
     };
 
     // create paypal redirect url
-    return await new Promise((resolve, reject) => {
+    return await new Promise((resolve) => {
       // create payment
-      paypal.billingAgreement.create(JSON.stringify(billingAgreement), (e, billingAgreement) => {
+      paypal.billingAgreement.create(JSON.stringify(billingAgreement), (e, agreement) => {
         // get links
         const links = {};
 
@@ -527,7 +518,7 @@ class PaypalController extends Controller {
         }
 
         // Capture HATEOAS links
-        billingAgreement.links.forEach((linkObj) => {
+        agreement.links.forEach((linkObj) => {
           // set link to object
           links[linkObj.rel] = {
             href   : linkObj.href,
@@ -536,12 +527,12 @@ class PaypalController extends Controller {
         });
 
         // If redirect url present, redirect user
-        if (links.hasOwnProperty('approval_url')) {
+        if (links.approval_url) {
           // set date
           payment.set('data', {
             redirect : links.approval_url.href,
           });
-          payment.set('paypal', billingAgreement);
+          payment.set('paypal', agreement);
 
           // set redirect
           return resolve(payment.set('redirect', payment.get('data.redirect')));
@@ -579,4 +570,4 @@ class PaypalController extends Controller {
  *
  * @type {PaypalController}
  */
-exports = module.exports = PaypalController;
+module.exports = PaypalController;
