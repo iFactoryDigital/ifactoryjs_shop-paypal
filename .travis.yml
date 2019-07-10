@@ -1,0 +1,21 @@
+language: node_js
+node_js:
+- '10'
+sudo: false
+install:
+- npm install --only=dev
+- npm ci
+before_script:
+- node node_modules/eslint/bin/eslint.js .
+script:
+- node ./edenconfig.js
+after_script:
+- npm test
+deploy:
+  provider: npm
+  email: alex@edenup.com
+  api_key:
+    secure: bNtHesAyKI5pWx1oyPjsNeJ/874hMWithi3OFxak/noR8ooDeum049am04SKNAabfU+4guRVH+7sBO7wmWhO173bEpUS63ez6vd935mQ9n2+FgmMeuwLGXlwqlTKdXiyaIWWZL276av8+ffqWnKzaySrpNjFzauzJncl18TF4Wm2x4vBTI6fHKEM5k1J0m2LQNGa9xRQVvr82Bw6xNKXgxP328PCPztshZMlA4GR03zFUL5w2hCz7sPJpNkg48dqlEQvq2ImVw/0doeMC+fgNz/wNphE5uTs/YwHvgH64WhKQBhJm7OLUetDJumrOWsqrQoiL9YH4CQNd7zVotea1goKyC7Oim/ilWO52FwDL+Nj26mCagc4E54RCznnOAMNzAQQa4yfseczN/mlFDKBG/ipMEJXn1G+gMQIdl5EVtm+5OWFtI+NBzseEG1L74FvzTfh9fsLshYF2qZaT/fZ9tvVpg0hu83K+1YPyz4fxx0jq/BngpsiTBKkdZp+Uj5K6X2qh5Ik68Y2nFC6apfwojmS/mR8bsEIBar7XAlQhcV7SMJSS8u/TAhAil7XE0EVJxlLz8JaNOJ9IY2KOo1NhdjT2xtOt2PDYy+6QIPQWscJ0p/IY7YzqeYBC1azf+/T6qfPUyS1wBptbWfGFYUWMhEa9qLJ0BWUX6TelNfJTuM=
+  on:
+    tags: true
+    repo: eden-js/shop-paypal
