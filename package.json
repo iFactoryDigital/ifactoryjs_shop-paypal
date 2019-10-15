@@ -1,5 +1,5 @@
 {
-  "name": "@edenjs/shop-paypal",
+  "name": "@ifactoryjs/shop-paypal",
   "description": "",
   "version": "1.3.3",
   "dependencies": {
@@ -16,14 +16,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eden-js/shop-paypal.git"
+    "url": "git+https://github.com/ifactorydigital/ifactoryjs_shop-paypal.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/eden-js/shop-paypal/issues"
+    "url": "https://github.com/ifactorydigital/ifactoryjs_shop-paypal/issues"
   },
-  "homepage": "https://github.com/eden-js/shop-paypal#readme",
+  "homepage": "https://github.com/ifactorydigital/ifactoryjs_shop-paypal#readme",
   "devDependencies": {
     "eslint": "^5.13.0",
     "@edenjs/eslint-config-eden": "^2.0.14",
